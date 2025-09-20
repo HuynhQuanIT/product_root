@@ -1,31 +1,9 @@
-// Middleware kiểm tra đăng nhập
-const requireAuth = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/auth/login');
-  }
-  next();
+module.exports.isLoggedIn = (req, res, next) => {
+  if (req.session && req.session.user) return next();
+  return res.redirect('/login');
 };
 
-// Middleware kiểm tra chưa đăng nhập (cho trang login, register)
-const requireGuest = (req, res, next) => {
-  if (req.session.user) {
-    return res.redirect('/');
-  }
-  next();
-};
-
-// Middleware xử lý method override (PUT, DELETE)
-const methodOverride = (req, res, next) => {
-  if (req.body && typeof req.body === 'object' && '_method' in req.body) {
-    const method = req.body._method;
-    delete req.body._method;
-    req.method = method.toUpperCase();
-  }
-  next();
-};
-
-module.exports = {
-  requireAuth,
-  requireGuest,
-  methodOverride
+module.exports.isAdmin = (req, res, next) => {
+  if (req.session && req.session.user && req.session.user.role === 'admin') return next();
+  return res.status(403).send('Forbidden - Admins only');
 };

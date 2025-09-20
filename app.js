@@ -1,71 +1,58 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const session = require('express-session');
-const cookieParser = require('cookie-parser');
 const path = require('path');
-require('dotenv').config();
+const bodyParser = require('body-parser');
+const methodOverride = require('method-override');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+
+const authRoutes = require('./routes/authRoutes');
+const supplierRoutes = require('./routes/supplierRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 const app = express();
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const supplierRoutes = require('./routes/suppliers');
-const productRoutes = require('./routes/products');
-const indexRoutes = require('./routes/index');
-
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/supplier_product_db', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('MongoDB connection error:', err));
-
-// View engine setup
+// view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+// static
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(methodOverride('_method'));
 
-// Session configuration
+// session
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: process.env.SESSION_SECRET || 'secret',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: false, // set to true in production with HTTPS
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: 14 * 24 * 60 * 60
+  }),
+  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
 }));
 
-// Make user available in all views
+// make user available in views
 app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
+  res.locals.currentUser = req.session.user || null;
   next();
 });
 
-// Routes
-app.use('/', indexRoutes);
-app.use('/auth', authRoutes);
+app.use('/', authRoutes);
 app.use('/suppliers', supplierRoutes);
 app.use('/products', productRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).render('error', { error: 'Có lỗi xảy ra!' });
+app.get('/', (req, res) => {
+  res.render('index');
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).render('error', { error: 'Trang không tồn tại!' });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server đang chạy trên port ${PORT}`);
-});
+// connect db and start
+mongoose.connect(process.env.MONGODB_URI)
+  .then(()=> {
+    console.log('MongoDB connected');
+    const port = process.env.PORT || 3000;
+    app.listen(port, ()=> console.log(`Server running on http://localhost:${port}`));
+  })
+  .catch(err => console.error(err));

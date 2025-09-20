@@ -1,0 +1,12 @@
+<%- include('partials/header') %>
+<div class="container" style="max-width:400px;">
+  <h2 class="mt-4 mb-3">Forgot password</h2>
+  <% if (info) { %><div class="alert alert-success"><%= info %></div><% } %>
+  <form action="/forgot" method="POST" class="mb-3">
+    <div class="mb-3">
+      <input name="email" type="email" required class="form-control" placeholder="Email">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Send reset link</button>
+  </form>
+</div>
+<%- include('partials/footer') %>
